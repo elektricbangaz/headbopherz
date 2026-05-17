@@ -2,8 +2,17 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
 
-const sql = neon(process.env.DATABASE_URL!);
-export const db = drizzle(sql);
+// Lazy singleton — deferred until first query so `next build` doesn't require DATABASE_URL
+let _db: ReturnType<typeof drizzle> | null = null;
+
+export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_, prop) {
+    if (!_db) {
+      _db = drizzle(neon(process.env.DATABASE_URL!));
+    }
+    return (_db as any)[prop];
+  },
+});
 
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
